@@ -1,5 +1,6 @@
 SKETCH = integrado.ino
 
+BUILD_THREADS = 4
 UPLOAD_PORT = /dev/ttyU0
 CHIP = esp8266
 
