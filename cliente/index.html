@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Garagem Maluca</title>
+		<style>
+			body {
+				margin: auto;
+				max-width: 400px;
+			}
+			.estacionamento {
+				width: 100%;
+			}
+			.vaga {
+				height: 300px;
+				width: 150px;
+				background-color: green;
+				color: #fff;
+				margin: 10px;
+				padding: 10px;
+				float: left;
+				text-align: center;
+				vertical-align: middle;
+				font-size: 20px;
+				display: table-cell;
+			}
+			.preenchida {
+				background-color: red;
+			}
+		</style>
+    </head>
+    <body>
+		<h1>Garagem Maluca</h1>
+
+		<h2 id="info-vagas">Vagas Livres: 1 / 2</h2>
+
+		<div class="estacionamento">
+			<div class="vaga" id="1">01</div>
+			<div class="vaga preenchida" id="2">02</div>
+		</div>
+
+        <script>
+			/* host do servidor websocket */
+			const host = "ws://192.168.15.38:1234/";
+            const ws = new WebSocket(host);
+
+			/*
+			 * Função altera a cor da div
+			 */
+			var altera_vaga = (id_vaga) => {
+				/* obtenho o elemento vaga pelo id*/
+				const class_preenchida = "preenchida";
+				const el_vaga = document.getElementById(id_vaga);
+				if (el_vaga != undefined && el_vaga != null) {
+					el_vaga.classList.toggle(class_preenchida);
+				} else {
+					console.log("Não encontrado o elemento de id: ", id_vaga);
+				}
+			};
+
+            ws.onmessage = function (event) {
+				const data = (event.data);
+				console.log("Recebido: ", data);
+				altera_vaga(data);
+            };
+        </script>
+    </body>
+</html>
