@@ -19,7 +19,7 @@ import websockets
 
 
 async def hello():
-    uri = "ws://192.168.15.38:1234"
+    uri = "ws://172.20.10.2:1234"
 
     async with websockets.connect(uri) as websocket:
         await websocket.send("1")

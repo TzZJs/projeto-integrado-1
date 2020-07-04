@@ -18,27 +18,35 @@
 #include <Hash.h>
 #include <WebSocketsClient.h>
 
-/* wifi ssid */
-const char 	*wifi_ssid = "";
-/* wifi ssid */
-const char 	*wifi_password = "";
+/* wifi ssid e senha */
+const char 	*wifi_ssid = "iPhone";
+const char 	*wifi_password = "1234567890";
 
-/* GPIO LED Vermelho */
-const int	 LED_VERMELHO = 5;
-const int	 LED_AMARELO = 4;
+/* leds */
+const int	 PIN_VERM = 16;		/* D0 */
+const int	 PIN_AMAR = 5;		/* D1 */
+
+/* Sensor ultrasônico */
+const int	 PIN_ECHO = 4; 		/* D2 */
+const int	 PIN_TRIG = 0; 		/* D3 */
 
 /* BaudRate 1152000 */
 const int 	 BRD = 115200;
 
-/* configurações para se conectar ao servidor websocket */
-const char	*ip_servidor = "";
+/* configurações do servidor websocket */
+const char	*ip_servidor = "172.20.10.2";
 const char	*rota = "/";
 const int	 porta = 1234;
 
 /* instância global websocket */
 WebSocketsClient websocket;
+long duration;
+int distance;
+int count = 0;
+int estacionado = 0;
 
-static void fn_recebe_evento(WStype_t, uint8_t *, size_t);
+static void 	 fn_recebe_evento(WStype_t, uint8_t *, size_t);
+static void 	 send_data_txt(const char *);
 
 /*
  * Função Setup
@@ -50,17 +58,25 @@ setup(void)
 	Serial.begin(BRD);
 
 	/* inicializamos os leds */
-	pinMode(LED_VERMELHO, OUTPUT);
-	pinMode(LED_AMARELO, OUTPUT);
+	pinMode(PIN_VERM, OUTPUT);
+	pinMode(PIN_AMAR, OUTPUT);
+
+	/* inicializamos o sensor ultrasônico */
+	pinMode(PIN_ECHO, INPUT);
+	pinMode(PIN_TRIG, OUTPUT);
 
 	/* inicializar wifi modo estação (cliente) */
 	WiFi.mode(WIFI_STA);
 	WiFi.begin(wifi_ssid, wifi_password);
 
 	while (WiFi.status() != WL_CONNECTED) {
+		digitalWrite(PIN_VERM, HIGH);
 		delay(500);
+		digitalWrite(PIN_VERM, LOW);
 		Serial.println("Não conectado.");
 	}
+	digitalWrite(PIN_VERM, LOW);
+	digitalWrite(PIN_AMAR, HIGH);
 
 	/* imprime o ssid da rede wifi */
 	Serial.print("Conectado Wifi: ");
@@ -82,6 +98,12 @@ setup(void)
 }
 
 static void
+send_data_txt(const char *msg)
+{
+	websocket.sendTXT(msg);
+}
+
+static void
 fn_recebe_evento(WStype_t tipo, uint8_t *dado, size_t tamanho)
 {
 	switch(tipo) {
@@ -90,7 +112,12 @@ fn_recebe_evento(WStype_t tipo, uint8_t *dado, size_t tamanho)
 			break;
 		case WStype_CONNECTED:
 			Serial.println("Conectado no Websocket");
-			websocket.sendTXT("TAMO CONECTADO!!!");
+			break;
+		case WStype_PING:
+			Serial.println("Ping");
+			break;
+		case WStype_PONG:
+			Serial.println("Pong");
 			break;
 	}
 }
@@ -101,20 +128,46 @@ fn_recebe_evento(WStype_t tipo, uint8_t *dado, size_t tamanho)
 void
 loop(void)
 {
-	websocket.loop();
-	/* Desligamos o led vermelho */
-	/*Serial.println("Desligando led vermelho");
-	digitalWrite(LED_VERMELHO, LOW);
-	digitalWrite(LED_AMARELO, LOW);
+	//websocket.loop();
+	//char buf[5];
+
 	delay(1000);
-*/
-	/* Liga o led vermelho */
-/*
-	Serial.println("Ligando led vermelho");
-	digitalWrite(LED_VERMELHO, HIGH);
-	digitalWrite(LED_AMARELO, HIGH);
-	delay(1000);
-*/
+
 	/* aguarde 2 segundos */
 	//delay(2000);
+
+	// Clears the PIN_TRIG
+	digitalWrite(PIN_TRIG, LOW);
+	delayMicroseconds(2);
+
+	// Sets the PIN_TRIG on HIGH state for 10 micro seconds
+	digitalWrite(PIN_TRIG, HIGH);
+	delayMicroseconds(10);
+	digitalWrite(PIN_TRIG, LOW);
+
+	// Reads the PIN_ECHO, returns the sound wave travel time in microseconds
+	duration = pulseIn(PIN_ECHO, HIGH);
+
+	// Calculating the distance
+	distance = duration * 0.034/2;
+
+	// Prints the distance on the Serial Monitor
+	Serial.print("Distance: ");
+	Serial.println(distance);
+	//sprintf(buf, "%.2f", distance);
+
+	if (distance <= 40) {
+		if (count > 3 && estacionado == 0) {
+			send_data_txt("1|p");
+			estacionado = 1;
+		} else if (estacionado == 1)
+			;
+		count += 1;
+	} else {
+		if (count > 3 && estacionado == 1)
+			send_data_txt("1|l");
+		count = 0;
+		estacionado = 0;
+	}
+	websocket.loop();
 }
